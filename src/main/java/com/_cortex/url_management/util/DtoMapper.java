@@ -32,7 +32,7 @@ public class DtoMapper {
     /**
      * Convert Url entity to UrlResponse DTO
      */
-    public static UrlResponse toUrlResponse(Url url) {
+    public static UrlResponse toUrlResponse(Url url, String baseUrl) {
         if (url == null) {
             return null;
         }
@@ -40,6 +40,7 @@ public class DtoMapper {
         UrlResponse response = new UrlResponse();
         response.setId(url.getId());
         response.setShortCode(url.getShortCode());
+        response.setShortUrl(baseUrl + "/" + url.getShortCode());
         response.setOriginalUrl(url.getOriginalUrl());
         response.setCreatedAt(url.getCreatedAt());
         response.setLastAccessedAt(url.getLastAccessedAt());

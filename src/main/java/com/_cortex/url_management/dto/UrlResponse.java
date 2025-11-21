@@ -18,6 +18,8 @@ public class UrlResponse {
 
     private String shortCode;
 
+    private String shortUrl;
+
     private String originalUrl;
 
     private Long createdByUserId;

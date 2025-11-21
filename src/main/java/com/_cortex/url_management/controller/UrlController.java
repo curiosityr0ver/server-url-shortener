@@ -9,6 +9,7 @@ import com._cortex.url_management.service.UrlService;
 import com._cortex.url_management.service.UserService;
 import com._cortex.url_management.util.DtoMapper;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
@@ -34,11 +35,30 @@ public class UrlController {
     private final UserService userService;
 
     /**
+     * Build base URL from the incoming request
+     */
+    private String getBaseUrl(HttpServletRequest request) {
+        String scheme = request.getScheme();
+        String serverName = request.getServerName();
+        int serverPort = request.getServerPort();
+
+        // Only include port if it's not the default port for the scheme
+        if ((scheme.equals("http") && serverPort == 80) ||
+                (scheme.equals("https") && serverPort == 443)) {
+            return scheme + "://" + serverName;
+        }
+
+        return scheme + "://" + serverName + ":" + serverPort;
+    }
+
+    /**
      * Create a shortened URL with auto-generated short code
      * POST /api/urls
      */
     @PostMapping("/api/urls")
-    public ResponseEntity<UrlResponse> createShortUrl(@Valid @RequestBody CreateUrlRequest request) {
+    public ResponseEntity<UrlResponse> createShortUrl(
+            @Valid @RequestBody CreateUrlRequest request,
+            HttpServletRequest httpRequest) {
         User user = null;
         if (request.getUserId() != null) {
             user = userService.findById(request.getUserId())
@@ -51,7 +71,7 @@ public class UrlController {
                 request.getExpireAt());
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(DtoMapper.toUrlResponse(url));
+                .body(DtoMapper.toUrlResponse(url, getBaseUrl(httpRequest)));
     }
 
     /**
@@ -59,7 +79,9 @@ public class UrlController {
      * POST /api/urls/custom
      */
     @PostMapping("/api/urls/custom")
-    public ResponseEntity<UrlResponse> createCustomShortUrl(@Valid @RequestBody CreateCustomUrlRequest request) {
+    public ResponseEntity<UrlResponse> createCustomShortUrl(
+            @Valid @RequestBody CreateCustomUrlRequest request,
+            HttpServletRequest httpRequest) {
         User user = null;
         if (request.getUserId() != null) {
             user = userService.findById(request.getUserId())
@@ -73,7 +95,7 @@ public class UrlController {
                 request.getExpireAt());
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(DtoMapper.toUrlResponse(url));
+                .body(DtoMapper.toUrlResponse(url, getBaseUrl(httpRequest)));
     }
 
     /**
@@ -81,11 +103,13 @@ public class UrlController {
      * GET /api/urls/{shortCode}
      */
     @GetMapping("/api/urls/{shortCode}")
-    public ResponseEntity<UrlResponse> getUrlDetails(@PathVariable String shortCode) {
+    public ResponseEntity<UrlResponse> getUrlDetails(
+            @PathVariable String shortCode,
+            HttpServletRequest httpRequest) {
         Url url = urlService.findByShortCode(shortCode)
                 .orElseThrow(() -> new IllegalArgumentException("URL not found with short code: " + shortCode));
 
-        return ResponseEntity.ok(DtoMapper.toUrlResponse(url));
+        return ResponseEntity.ok(DtoMapper.toUrlResponse(url, getBaseUrl(httpRequest)));
     }
 
     /**
@@ -115,10 +139,13 @@ public class UrlController {
      * GET /api/users/{userId}/urls
      */
     @GetMapping("/api/users/{userId}/urls")
-    public ResponseEntity<List<UrlResponse>> getUserUrls(@PathVariable Long userId) {
+    public ResponseEntity<List<UrlResponse>> getUserUrls(
+            @PathVariable Long userId,
+            HttpServletRequest httpRequest) {
         List<Url> urls = urlService.findByUserId(userId);
+        String baseUrl = getBaseUrl(httpRequest);
         List<UrlResponse> responses = urls.stream()
-                .map(DtoMapper::toUrlResponse)
+                .map(url -> DtoMapper.toUrlResponse(url, baseUrl))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responses);
@@ -129,10 +156,11 @@ public class UrlController {
      * GET /api/urls/stats/popular
      */
     @GetMapping("/api/urls/stats/popular")
-    public ResponseEntity<List<UrlResponse>> getPopularUrls() {
+    public ResponseEntity<List<UrlResponse>> getPopularUrls(HttpServletRequest httpRequest) {
         List<Url> urls = urlService.getMostPopularUrls();
+        String baseUrl = getBaseUrl(httpRequest);
         List<UrlResponse> responses = urls.stream()
-                .map(DtoMapper::toUrlResponse)
+                .map(url -> DtoMapper.toUrlResponse(url, baseUrl))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responses);

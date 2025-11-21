@@ -316,6 +316,7 @@ curl -X POST http://localhost:8081/api/urls \
 {
   "id": 1,
   "shortCode": "aB3xY7K",
+  "shortUrl": "http://localhost:8081/aB3xY7K",
   "originalUrl": "https://www.google.com",
   "createdByUserId": 1,
   "createdByUsername": "testuser",
@@ -514,6 +515,26 @@ curl http://localhost:8081/api/urls/stats/popular \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### Testing on Windows (PowerShell)
+
+If you are using PowerShell on Windows, use these commands:
+
+```powershell
+# 1. Login and store token
+$body = @{ username = "testuser"; password = "password123" } | ConvertTo-Json
+$response = Invoke-WebRequest -Uri http://localhost:8081/api/auth/login -Method POST -Body $body -ContentType "application/json"
+$token = ($response.Content | ConvertFrom-Json).token
+
+# 2. Create a short URL
+$headers = @{ Authorization = "Bearer $token" }
+$body = @{ originalUrl = "https://www.google.com" } | ConvertTo-Json
+$urlResponse = Invoke-WebRequest -Uri http://localhost:8081/api/urls -Method POST -Body $body -ContentType "application/json" -Headers $headers
+$urlResponse.Content
+
+# 3. Get URL Details
+Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular -Headers $headers
+```
+
 ### Validation Rules
 
 **URLs:**
@@ -594,6 +615,8 @@ The application supports the following environment variables (useful for deploym
 | `SPRING_DATASOURCE_PASSWORD` | Database password | `admin` |
 | `SERVER_PORT` | Application port | `8080` |
 | `JWT_SECRET` | JWT signing secret (recommended for production) | Auto-generated |
+
+> **Note:** The `shortUrl` field in API responses is automatically extracted from the incoming HTTP request (scheme, host, and port), so it works correctly in any environment without manual configuration.
 
 ### Docker Compose Configuration
 
