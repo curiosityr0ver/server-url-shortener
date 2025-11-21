@@ -1,7 +1,10 @@
 package com._cortex.url_management.service;
 
-import com._cortex.url_management.model.User;
-import com._cortex.url_management.repository.UserRepository;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,54 +12,33 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import com._cortex.url_management.model.User;
+import com._cortex.url_management.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
-class UserServiceTest {
+public class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     @InjectMocks
     private UserService userService;
 
-    private User testUser;
-
-    @BeforeEach
-    void setUp() {
-        testUser = new User();
-        testUser.setId(1L);
-        testUser.setUsername("testuser");
-        testUser.setEmail("test@example.com");
-        testUser.setPasswordHash("hashedpassword");
+    // Assert
+    assertNotNull(createdUser);
+        assertEquals("testuser", createdUser.getUsername());
+        assertEquals("test@example.com", createdUser.getEmail());
+        verify(passwordEncoder).encode("password123"); // Verify password was hashed
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
-    void testCreateUser_Success() {
-        // Arrange
-        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.empty());
-        when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenReturn(testUser);
-
-        // Act
-        User result = userService.createUser(testUser);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(testUser.getUsername(), result.getUsername());
-        assertEquals(testUser.getEmail(), result.getEmail());
-        verify(userRepository).findByUsername(testUser.getUsername());
-        verify(userRepository).findByEmail(testUser.getEmail());
-        verify(userRepository).save(testUser);
-    }
-
-    @Test
-    void testCreateUser_ThrowsExceptionWhenUsernameExists() {
+    public void testCreateUser_ThrowsExceptionWhenUsernameExists() {
         // Arrange
         when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
 
@@ -72,7 +54,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testCreateUser_ThrowsExceptionWhenEmailExists() {
+    public void testCreateUser_ThrowsExceptionWhenEmailExists() {
         // Arrange
         when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.empty());
         when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.of(testUser));
@@ -89,7 +71,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testFindById_UserExists() {
+    public void testFindById_UserExists() {
         // Arrange
         Long userId = 1L;
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
@@ -104,7 +86,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testFindById_UserNotFound() {
+    public void testFindById_UserNotFound() {
         // Arrange
         Long userId = 999L;
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
@@ -118,7 +100,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testFindByUsername() {
+    public void testFindByUsername() {
         // Arrange
         String username = "testuser";
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(testUser));
@@ -133,7 +115,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testFindByEmail() {
+    public void testFindByEmail() {
         // Arrange
         String email = "test@example.com";
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
@@ -148,7 +130,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testUpdateUser() {
+    public void testUpdateUser() {
         // Arrange
         testUser.setEmail("newemail@example.com");
         when(userRepository.save(testUser)).thenReturn(testUser);
@@ -163,7 +145,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testDeleteUser() {
+    public void testDeleteUser() {
         // Arrange
         Long userId = 1L;
         doNothing().when(userRepository).deleteById(userId);

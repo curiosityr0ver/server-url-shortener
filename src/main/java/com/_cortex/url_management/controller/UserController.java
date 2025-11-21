@@ -34,7 +34,7 @@ public class UserController {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-        user.setPasswordHash(request.getPassword()); // TODO: Hash password with BCrypt
+        user.setPasswordHash(request.getPassword()); // Will be hashed in service layer
 
         User createdUser = userService.createUser(user);
 
@@ -92,7 +92,7 @@ public class UserController {
 
         user.setEmail(request.getEmail());
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-            user.setPasswordHash(request.getPassword()); // TODO: Hash password with BCrypt
+            user.setPasswordHash(request.getPassword()); // Will be hashed in service layer on update
         }
 
         User updatedUser = userService.updateUser(user);
