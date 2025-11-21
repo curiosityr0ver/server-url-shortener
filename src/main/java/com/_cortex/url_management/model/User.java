@@ -2,12 +2,16 @@ package com._cortex.url_management.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
+@ToString(exclude = "passwordHash")
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {

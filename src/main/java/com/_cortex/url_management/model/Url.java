@@ -4,15 +4,19 @@ import java.time.Instant;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "urls", indexes = {
         @Index(name = "idx_urls_shortcode", columnList = "short_code"),
         @Index(name = "idx_urls_createdby", columnList = "created_by")
 })
-@Data
+@Getter
+@Setter
+@ToString(exclude = "createdBy")
 @NoArgsConstructor
 @AllArgsConstructor
 public class Url {
