@@ -11,16 +11,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com._cortex.url_management.model.User;
+import com._cortex.url_management.security.JwtAuthenticationFilter;
+import com._cortex.url_management.security.JwtUtil;
+import com._cortex.url_management.security.SecurityConfig;
+import com._cortex.url_management.service.CustomUserDetailsService;
 import com._cortex.url_management.service.UserService;
 
 /**
  * Unit tests for UserController
  */
 @WebMvcTest(UserController.class)
+@Import(SecurityConfig.class)
 public class UserControllerTest {
 
     @Autowired
@@ -29,7 +36,17 @@ public class UserControllerTest {
     @MockBean
     private UserService userService;
 
+    @MockBean
+    private JwtUtil jwtUtil;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private CustomUserDetailsService customUserDetailsService;
+
     @Test
+    @WithMockUser
     public void testCreateUser_Success() throws Exception {
         // Arrange
         User user = new User(1L, "testuser", "test@example.com", "hashedpassword");
@@ -47,6 +64,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testCreateUser_ValidationError_InvalidEmail() throws Exception {
         // Act & Assert
         mockMvc.perform(post("/api/users")
@@ -56,6 +74,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testCreateUser_ValidationError_ShortPassword() throws Exception {
         // Act & Assert
         mockMvc.perform(post("/api/users")
@@ -65,6 +84,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testCreateUser_DuplicateUsername() throws Exception {
         // Arrange
         when(userService.createUser(any(User.class)))
@@ -78,6 +98,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testGetUserById_Success() throws Exception {
         // Arrange
         User user = new User(1L, "testuser", "test@example.com", "hashedpassword");
@@ -92,6 +113,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testGetUserById_NotFound() throws Exception {
         // Arrange
         when(userService.findById(999L)).thenReturn(Optional.empty());
@@ -102,6 +124,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testGetUserByUsername_Success() throws Exception {
         // Arrange
         User user = new User(1L, "testuser", "test@example.com", "hashedpassword");
@@ -115,6 +138,7 @@ public class UserControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void testDeleteUser_Success() throws Exception {
         // Arrange
         doNothing().when(userService).deleteUser(1L);
@@ -122,5 +146,14 @@ public class UserControllerTest {
         // Act & Assert
         mockMvc.perform(delete("/api/users/1"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void testCreateUser_Unauthorized() throws Exception {
+        // Act & Assert - No @WithMockUser, should be forbidden
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"testuser\",\"email\":\"test@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isForbidden());
     }
 }

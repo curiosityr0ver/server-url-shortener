@@ -29,8 +29,30 @@ public class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-    // Assert
-    assertNotNull(createdUser);
+    private User testUser;
+
+    @BeforeEach
+    public void setUp() {
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("testuser");
+        testUser.setEmail("test@example.com");
+        testUser.setPasswordHash("password123");
+    }
+
+    @Test
+    public void testCreateUser_Success() {
+        // Arrange
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("password123")).thenReturn("hashedpassword");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+
+        // Act
+        User createdUser = userService.createUser(testUser);
+
+        // Assert
+        assertNotNull(createdUser);
         assertEquals("testuser", createdUser.getUsername());
         assertEquals("test@example.com", createdUser.getEmail());
         verify(passwordEncoder).encode("password123"); // Verify password was hashed
