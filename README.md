@@ -205,24 +205,243 @@ server.port=8080
 
 ## 🔌 API Endpoints
 
-### Health Check
+> **Base URL:** `http://localhost:8081` (Docker) or `http://localhost:8080` (Local)
+> 
+> **Full API Documentation:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for complete details on all endpoints, request/response formats, and error handling.
 
+### Quick Reference
+
+| Category | Endpoint | Method | Description |
+|----------|----------|--------|-------------|
+| **Health** | `/actuator/health` | GET | Application health check |
+| **URLs** | `/api/urls` | POST | Create auto-generated short URL |
+| **URLs** | `/api/urls/custom` | POST | Create custom short URL |
+| **URLs** | `/api/urls/{shortCode}` | GET | Get URL details |
+| **URLs** | `/{shortCode}` | GET | Redirect to original URL |
+| **URLs** | `/api/urls/{id}` | DELETE | Delete URL |
+| **URLs** | `/api/users/{userId}/urls` | GET | Get user's URLs |
+| **URLs** | `/api/urls/stats/popular` | GET | Get popular URLs |
+| **URLs** | `/api/urls/expired` | DELETE | Delete expired URLs |
+| **Users** | `/api/users` | POST | Create user |
+| **Users** | `/api/users/{id}` | GET | Get user by ID |
+| **Users** | `/api/users/username/{username}` | GET | Get user by username |
+| **Users** | `/api/users/email/{email}` | GET | Get user by email |
+| **Users** | `/api/users/{id}` | PUT | Update user |
+| **Users** | `/api/users/{id}` | DELETE | Delete user |
+
+### Testing with cURL
+
+#### User Management
+
+**1. Create a User**
 ```bash
-GET /actuator/health
+curl -X POST http://localhost:8081/api/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john_doe",
+    "email": "john@example.com",
+    "password": "securepass123"
+  }'
 ```
 
-Returns the application health status.
-
-**Response:**
+**Response:** `201 Created`
 ```json
 {
-  "status": "UP"
+  "id": 1,
+  "username": "john_doe",
+  "email": "john@example.com"
 }
 ```
 
-### Additional Endpoints
+**2. Get User by ID**
+```bash
+curl http://localhost:8081/api/users/1
+```
 
-*(Add your application-specific endpoints here)*
+**3. Get User by Username**
+```bash
+curl http://localhost:8081/api/users/username/john_doe
+```
+
+**4. Update User**
+```bash
+curl -X PUT http://localhost:8081/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john_doe",
+    "email": "newemail@example.com",
+    "password": "newpassword123"
+  }'
+```
+
+#### URL Shortening
+
+**1. Create Auto-Generated Short URL**
+```bash
+curl -X POST http://localhost:8081/api/urls \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalUrl": "https://www.google.com",
+    "userId": 1
+  }'
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 1,
+  "shortCode": "aB3xY7K",
+  "originalUrl": "https://www.google.com",
+  "createdByUserId": 1,
+  "createdByUsername": "john_doe",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "lastAccessedAt": null,
+  "expireAt": null,
+  "hits": 0
+}
+```
+
+**2. Create Custom Short URL**
+```bash
+curl -X POST http://localhost:8081/api/urls/custom \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalUrl": "https://www.github.com",
+    "customShortCode": "github",
+    "userId": 1
+  }'
+```
+
+**3. Create URL with Expiration**
+```bash
+curl -X POST http://localhost:8081/api/urls \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalUrl": "https://www.example.com",
+    "userId": 1,
+    "expireAt": "2024-12-31T23:59:59Z"
+  }'
+```
+
+**4. Get URL Details (Without Redirect)**
+```bash
+curl http://localhost:8081/api/urls/aB3xY7K
+```
+
+**5. Test Redirect**
+```bash
+# Follow redirects with -L flag
+curl -L http://localhost:8081/aB3xY7K
+
+# See redirect headers
+curl -I http://localhost:8081/aB3xY7K
+```
+
+**6. Get All URLs for a User**
+```bash
+curl http://localhost:8081/api/users/1/urls
+```
+
+**7. Get Most Popular URLs**
+```bash
+curl http://localhost:8081/api/urls/stats/popular
+```
+
+**8. Delete a URL**
+```bash
+curl -X DELETE http://localhost:8081/api/urls/1
+```
+
+**9. Delete Expired URLs**
+```bash
+curl -X DELETE http://localhost:8081/api/urls/expired
+```
+
+### Testing Workflow Example
+
+Here's a complete workflow to test the application:
+
+```bash
+# 1. Check application health
+curl http://localhost:8081/actuator/health
+
+# 2. Create a user
+curl -X POST http://localhost:8081/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
+
+# 3. Create a short URL (replace userId with the ID from step 2)
+curl -X POST http://localhost:8081/api/urls \
+  -H "Content-Type: application/json" \
+  -d '{"originalUrl":"https://www.google.com","userId":1}'
+
+# 4. Get the short code from the response, then test redirect
+curl -L http://localhost:8081/{shortCode}
+
+# 5. Check URL statistics
+curl http://localhost:8081/api/urls/{shortCode}
+
+# 6. View all URLs created by the user
+curl http://localhost:8081/api/users/1/urls
+
+# 7. Check popular URLs
+curl http://localhost:8081/api/urls/stats/popular
+```
+
+### Validation Rules
+
+**URLs:**
+- `originalUrl`: Required, must start with `http://` or `https://`, max 2048 characters
+- `customShortCode`: 3-20 alphanumeric characters `[0-9A-Za-z]`
+- `userId`: Optional, must be a valid user ID
+- `expireAt`: Optional, ISO 8601 timestamp format
+
+**Users:**
+- `username`: Required, 3-150 characters, unique
+- `email`: Required, valid email format, max 255 characters, unique
+- `password`: Required, minimum 8 characters (stored as BCrypt hash)
+
+### Error Responses
+
+**Validation Error (400 Bad Request):**
+```json
+{
+  "status": 400,
+  "message": "Validation failed",
+  "errors": {
+    "originalUrl": "Original URL is required",
+    "customShortCode": "Short code must contain only alphanumeric characters"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+**Resource Not Found (400 Bad Request):**
+```json
+{
+  "status": 400,
+  "message": "URL not found with short code: xyz123",
+  "errors": null,
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### Using Postman
+
+You can also test the API using Postman:
+
+1. Import the collection from the [API Documentation](API_DOCUMENTATION.md)
+2. Set environment variables:
+   - `baseUrl`: `http://localhost:8081`
+   - `userId`: `1` (after creating a user)
+   - `shortCode`: (from created URL responses)
+
+### Security Features
+
+- **Password Hashing:** All passwords are securely hashed using BCrypt before storage
+- **No Password Exposure:** User responses never include password hashes
+- **Input Validation:** All inputs are validated against defined constraints
+- **Error Handling:** Centralized exception handling prevents information leakage
 
 ## 🗄️ Database Migrations
 
