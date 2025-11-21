@@ -409,15 +409,67 @@ docker-compose logs --tail=100
 
 ### Accessing PostgreSQL
 
+You can connect to the PostgreSQL database and run SQL queries using the `psql` interactive terminal:
+
 ```bash
 # Connect to PostgreSQL container
 docker exec -it urlshortener-postgres psql -U admin -d urlshortener
-
-# Common commands:
-# \dt          - List tables
-# \d <table>   - Describe table
-# \q           - Quit
 ```
+
+Once connected, you'll see the `psql` prompt (`urlshortener=#`) where you can run SQL queries and commands:
+
+```sql
+-- List all tables
+\dt
+
+-- Describe a specific table structure
+\d table_name
+
+-- Run any SQL query
+SELECT * FROM your_table;
+
+-- Show current database
+SELECT current_database();
+
+-- List all schemas
+\dn
+
+-- Show all users
+\du
+
+-- Toggle expanded display (better for wide tables)
+\x
+
+-- Show query execution time
+\timing
+
+-- Get help on psql commands
+\?
+
+-- Get help on SQL commands
+\h
+
+-- Exit psql
+\q
+```
+
+**Example Session:**
+
+```bash
+$ docker exec -it urlshortener-postgres psql -U admin -d urlshortener
+
+urlshortener=# \dt
+                List of relations
+ Schema |         Name          | Type  | Owner
+--------+-----------------------+-------+-------
+ public | flyway_schema_history | table | admin
+ public | urls                  | table | admin
+
+urlshortener=# SELECT * FROM flyway_schema_history;
+
+urlshortener=# \q
+```
+
 
 ## 📝 Notes
 
