@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  - type: pspg
+  - type: pg
     name: urlshortener-db
     databaseName: urlshortener
     user: admin
@@ -11,8 +11,8 @@ services:
     name: urlshortener-app
     runtime: docker
     plan: free  # Change to 'starter' or 'standard' for production
-    dockerfilePath: ./server/Dockerfile
-    dockerContext: ./server
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       # Disable H2 console in production
       - key: SPRING_H2_CONSOLE_ENABLED
