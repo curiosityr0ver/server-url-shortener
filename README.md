@@ -12,9 +12,13 @@ A Spring Boot-based URL shortener application with PostgreSQL database and conta
   - [Local Development (Without Docker)](#local-development-without-docker)
 - [Authentication](#authentication)
 - [API Endpoints](#api-endpoints)
+- [Complete API Examples](#complete-api-examples)
+- [Frontend Integration](#frontend-integration)
 - [Configuration](#configuration)
 - [Database Migrations](#database-migrations)
 - [Deployment](#deployment)
+  - [Render Deployment](#render-deployment)
+- [Production Recommendations](#production-recommendations)
 - [Troubleshooting](#troubleshooting)
 
 ## 🔧 Prerequisites
@@ -163,7 +167,7 @@ The application will start on port **8080**.
 
 ## 🔐 Authentication
 
-This application uses **session-based authentication** for securing API endpoints.
+This application uses **Spring Security** for authentication. Currently, all endpoints are publicly accessible, but authentication endpoints are available for user registration and login.
 
 ### Quick Start with Authentication
 
@@ -178,6 +182,11 @@ curl -X POST http://localhost:8081/api/auth/register \
   }'
 ```
 
+**Response:** `200 OK`
+```
+User registered successfully
+```
+
 **Step 2: Login**
 ```bash
 curl -X POST http://localhost:8081/api/auth/login \
@@ -188,7 +197,7 @@ curl -X POST http://localhost:8081/api/auth/login \
   }'
 ```
 
-**Response:**
+**Response:** `200 OK`
 ```json
 {
   "message": "Login successful",
@@ -196,47 +205,48 @@ curl -X POST http://localhost:8081/api/auth/login \
 }
 ```
 
-**Note:** After successful login, the session is maintained via cookies. For protected endpoints, ensure cookies are sent with subsequent requests.
+**Note:** Currently, authentication is not enforced on API endpoints. All endpoints are publicly accessible. The authentication system is in place for future use.
 
 ## 🔌 API Endpoints
 
-> **Base URL:** `http://localhost:8081` (Docker) or `http://localhost:8080` (Local)
+> **Base URL:** 
+> - Local (Docker): `http://localhost:8081`
+> - Local (Without Docker): `http://localhost:8080`
+> - Production (Render): `https://your-app.onrender.com`
+
+> **Note:** All endpoints support CORS and can be accessed from any frontend application.
 
 ### 🔓 Public Endpoints (No Authentication Required)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/actuator/health` | Application health check |
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login (returns success message) |
-| GET | `/{shortCode}` | Redirect to original URL (tracks hits) |
+| Method | Endpoint | Description | Response Code |
+|--------|----------|-------------|---------------|
+| GET | `/actuator/health` | Application health check | 200 |
+| POST | `/api/auth/register` | Register new user | 200 |
+| POST | `/api/auth/login` | Login (returns success message) | 200 |
+| GET | `/{shortCode}` | Redirect to original URL (tracks hits) | 302 |
 
-### 🔒 Protected Endpoints
+### 📋 URL Management Endpoints
 
-Currently, all endpoints are publicly accessible. Authentication endpoints are available for user registration and login, but authentication is not enforced on API endpoints.
+| Method | Endpoint | Description | Request Body | Response Code |
+|--------|----------|-------------|--------------|----------------|
+| POST | `/api/urls` | Create auto-generated short URL | `{"originalUrl": "https://...", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` | 201 |
+| POST | `/api/urls/custom` | Create custom short URL | `{"originalUrl": "https://...", "customShortCode": "mylink", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` | 201 |
+| GET | `/api/urls/{shortCode}` | Get URL details (without redirect, no hit tracking) | - | 200 |
+| DELETE | `/api/urls/{id}` | Delete URL by ID | - | 204 |
+| GET | `/api/users/{userId}/urls` | Get all URLs created by a user | - | 200 |
+| GET | `/api/urls/stats/popular` | Get most popular URLs (top 10 by hits) | - | 200 |
+| DELETE | `/api/urls/expired` | Delete all expired URLs | - | 200 |
 
-#### URL Management
+### 👤 User Management Endpoints
 
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| POST | `/api/urls` | Create auto-generated short URL | `{"originalUrl": "https://...", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` |
-| POST | `/api/urls/custom` | Create custom short URL | `{"originalUrl": "https://...", "customShortCode": "mylink", "userId": 1}` |
-| GET | `/api/urls/{shortCode}` | Get URL details (without redirect) | - |
-| DELETE | `/api/urls/{id}` | Delete URL by ID | - |
-| GET | `/api/users/{userId}/urls` | Get all URLs created by a user | - |
-| GET | `/api/urls/stats/popular` | Get most popular URLs (top 10 by hits) | - |
-| DELETE | `/api/urls/expired` | Delete all expired URLs | - |
-
-#### User Management
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| POST | `/api/users` | Create new user | `{"username": "...", "email": "...", "password": "..."}` |
-| GET | `/api/users/{id}` | Get user by ID | - |
-| GET | `/api/users/username/{username}` | Get user by username | - |
-| GET | `/api/users/email/{email}` | Get user by email | - |
-| PUT | `/api/users/{id}` | Update user | `{"username": "...", "email": "...", "password": "..."}` |
-| DELETE | `/api/users/{id}` | Delete user | - |
+| Method | Endpoint | Description | Request Body | Response Code |
+|--------|----------|-------------|--------------|----------------|
+| POST | `/api/users` | Create new user | `{"username": "...", "email": "...", "password": "..."}` | 201 |
+| GET | `/api/users/{id}` | Get user by ID | - | 200 |
+| GET | `/api/users/username/{username}` | Get user by username | - | 200 |
+| GET | `/api/users/email/{email}` | Get user by email | - | 200 |
+| PUT | `/api/users/{id}` | Update user | `{"username": "...", "email": "...", "password": "..."}` | 200 |
+| DELETE | `/api/users/{id}` | Delete user | - | 204 |
 
 ## 📝 Complete API Examples
 
@@ -315,7 +325,35 @@ curl -X POST http://localhost:8081/api/urls/custom \
   }'
 ```
 
-**3. Create URL with Expiration**
+**Response:** `201 Created`
+```json
+{
+  "id": 2,
+  "shortCode": "github",
+  "shortUrl": "http://localhost:8081/github",
+  "originalUrl": "https://www.github.com",
+  "createdByUserId": 1,
+  "createdByUsername": "testuser",
+  "createdAt": "2025-01-21T10:35:00Z",
+  "lastAccessedAt": null,
+  "expireAt": null,
+  "hits": 0
+}
+```
+
+**3. Create Custom Short URL with Expiration**
+```bash
+curl -X POST http://localhost:8081/api/urls/custom \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalUrl": "https://www.github.com",
+    "customShortCode": "github",
+    "userId": 1,
+    "expireAt": "2024-12-31T23:59:59Z"
+  }'
+```
+
+**4. Create URL with Expiration**
 ```bash
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
@@ -326,12 +364,44 @@ curl -X POST http://localhost:8081/api/urls \
   }'
 ```
 
-**4. Get URL Details (No Redirect, No Hit Count)**
+**Response:** `201 Created`
+```json
+{
+  "id": 3,
+  "shortCode": "xY9zK2m",
+  "shortUrl": "http://localhost:8081/xY9zK2m",
+  "originalUrl": "https://www.example.com",
+  "createdByUserId": 1,
+  "createdByUsername": "testuser",
+  "createdAt": "2025-01-21T10:40:00Z",
+  "lastAccessedAt": null,
+  "expireAt": "2024-12-31T23:59:59Z",
+  "hits": 0
+}
+```
+
+**5. Get URL Details (No Redirect, No Hit Count)**
 ```bash
 curl http://localhost:8081/api/urls/aB3xY7K
 ```
 
-**5. Test Public Redirect (No Auth Required)**
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "shortCode": "aB3xY7K",
+  "shortUrl": "http://localhost:8081/aB3xY7K",
+  "originalUrl": "https://www.google.com",
+  "createdByUserId": 1,
+  "createdByUsername": "testuser",
+  "createdAt": "2025-01-21T10:30:00Z",
+  "lastAccessedAt": null,
+  "expireAt": null,
+  "hits": 0
+}
+```
+
+**6. Test Public Redirect (No Auth Required)**
 ```bash
 # Follow redirects with -L flag
 curl -L http://localhost:8081/aB3xY7K
@@ -340,17 +410,25 @@ curl -L http://localhost:8081/aB3xY7K
 curl -I http://localhost:8081/aB3xY7K
 ```
 
-**6. Get All URLs for a User**
+**Response:** `302 Found` (redirects to original URL)
+```
+HTTP/1.1 302 Found
+Location: https://www.google.com
+```
+
+**Note:** This endpoint tracks hits. Each access increments the `hits` counter and updates `lastAccessedAt`.
+
+**7. Get All URLs for a User**
 ```bash
 curl http://localhost:8081/api/users/1/urls
 ```
 
-**7. Get Most Popular URLs**
+**8. Get Most Popular URLs**
 ```bash
 curl http://localhost:8081/api/urls/stats/popular
 ```
 
-**Response:**
+**Response:** `200 OK`
 ```json
 [
   {
@@ -380,14 +458,16 @@ curl http://localhost:8081/api/urls/stats/popular
 ]
 ```
 
-**8. Delete a URL**
+**Note:** Returns top 10 URLs ordered by hit count (descending).
+
+**9. Delete a URL**
 ```bash
 curl -X DELETE http://localhost:8081/api/urls/1
 ```
 
 **Response:** `204 No Content`
 
-**9. Delete All Expired URLs**
+**10. Delete All Expired URLs**
 ```bash
 curl -X DELETE http://localhost:8081/api/urls/expired
 ```
@@ -425,14 +505,41 @@ curl -X POST http://localhost:8081/api/users \
 curl http://localhost:8081/api/users/1
 ```
 
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "username": "john_doe",
+  "email": "john@example.com"
+}
+```
+
 **3. Get User by Username**
 ```bash
 curl http://localhost:8081/api/users/username/john_doe
 ```
 
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "username": "john_doe",
+  "email": "john@example.com"
+}
+```
+
 **4. Get User by Email**
 ```bash
 curl http://localhost:8081/api/users/email/john@example.com
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "username": "john_doe",
+  "email": "john@example.com"
+}
 ```
 
 **5. Update User**
@@ -445,6 +552,17 @@ curl -X PUT http://localhost:8081/api/users/1 \
     "password": "newpassword123"
   }'
 ```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "username": "john_doe",
+  "email": "newemail@example.com"
+}
+```
+
+**Note:** Password is optional in the update request. If provided, it will be hashed and updated.
 
 **6. Delete User**
 ```bash
@@ -512,14 +630,14 @@ Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular
 
 **URLs:**
 - `originalUrl`: Required, must start with `http://` or `https://`, max 2048 characters
-- `customShortCode`: 3-20 alphanumeric characters `[0-9A-Za-z]`
-- `userId`: Optional, must be a valid user ID
-- `expireAt`: Optional, ISO 8601 timestamp format
+- `customShortCode`: Required for `/api/urls/custom`, 3-20 alphanumeric characters `[0-9A-Za-z]`, must be unique
+- `userId`: Optional, must be a valid user ID if provided
+- `expireAt`: Optional, ISO 8601 timestamp format (e.g., `"2024-12-31T23:59:59Z"`)
 
 **Users:**
 - `username`: Required, 3-150 characters, unique
 - `email`: Required, valid email format, max 255 characters, unique
-- `password`: Required, minimum 8 characters (stored as BCrypt hash)
+- `password`: Required for creation, minimum 8 characters (stored as BCrypt hash). Optional for updates.
 
 ### Error Responses
 
@@ -570,20 +688,43 @@ Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular
 }
 ```
 
+**Registration Error (400 Bad Request):**
+```json
+{
+  "error": "Failed to register user: Username already exists"
+}
+```
+
+**Custom Short Code Conflict (400 Bad Request):**
+```json
+{
+  "status": 400,
+  "message": "Short code already exists: github",
+  "errors": null,
+  "timestamp": "2025-01-21T10:30:00Z"
+}
+```
+
 ## ⚙️ Configuration
 
 ### Environment Variables
 
 The application supports the following environment variables (useful for deployment):
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://postgres:5432/urlshortener` |
-| `SPRING_DATASOURCE_USERNAME` | Database username | `admin` |
-| `SPRING_DATASOURCE_PASSWORD` | Database password | `admin` |
-| `SERVER_PORT` | Application port | `8080` |
+| Variable | Description | Default | Notes |
+|----------|-------------|---------|-------|
+| `DATABASE_URL` | PostgreSQL connection string (Render format) | - | Format: `postgresql://user:password@host:port/database` |
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL | `jdbc:h2:mem:testdb` | Used if DATABASE_URL not set |
+| `SPRING_DATASOURCE_USERNAME` | Database username | `sa` | Used if DATABASE_URL not set |
+| `SPRING_DATASOURCE_PASSWORD` | Database password | `password` | Used if DATABASE_URL not set |
+| `SPRING_DATASOURCE_DRIVER_CLASS_NAME` | Database driver class | `org.h2.Driver` | Auto-detected from URL |
+| `PORT` | Application port (set by Render) | `8080` | Spring Boot reads PORT automatically |
+| `SPRING_H2_CONSOLE_ENABLED` | Enable H2 console | `true` | Set to `false` in production |
 
-> **Note:** The `shortUrl` field in API responses is automatically extracted from the incoming HTTP request (scheme, host, and port), so it works correctly in any environment without manual configuration.
+> **Note:** 
+> - The `shortUrl` field in API responses is automatically extracted from the incoming HTTP request (scheme, host, and port), so it works correctly in any environment without manual configuration.
+> - When `DATABASE_URL` is provided (e.g., by Render), the `docker-entrypoint.sh` script automatically parses it and sets the individual Spring Boot datasource variables.
+> - The application falls back to H2 in-memory database if no PostgreSQL connection is configured.
 
 ### Docker Compose Configuration
 
@@ -607,30 +748,44 @@ The `docker-compose.yml` file defines two services:
 Key configurations in `application.properties`:
 
 ```properties
-# Database
-spring.datasource.url=jdbc:postgresql://postgres:5432/urlshortener
-spring.datasource.username=admin
-spring.datasource.password=admin
+# Database - Supports multiple formats via environment variables
+spring.datasource.url=${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:h2:mem:testdb}}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME:${DB_USER:sa}}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:password}}
+spring.datasource.driver-class-name=${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.h2.Driver}
 
 # JPA/Hibernate
-spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
 
-# Flyway
-spring.flyway.enabled=true
-spring.flyway.locations=classpath:db/migration
+# Server - Uses PORT environment variable (set by Render) or defaults to 8080
+server.port=${PORT:8080}
 
-# Server
-server.port=8080
+# H2 Console (disabled in production)
+spring.h2.console.enabled=${SPRING_H2_CONSOLE_ENABLED:true}
 ```
 
 ### Security Features
 
 - **Password Hashing**: All passwords are securely hashed using BCrypt before storage
 - **No Password Exposure**: User responses never include password hashes
+- **CORS Support**: Configured to allow cross-origin requests from any frontend (configurable in `SecurityConfig.java`)
+- **CSRF Disabled**: CSRF protection is disabled for API access
 - **Public Endpoints**: All endpoints are currently publicly accessible
 - **Input Validation**: All inputs are validated against defined constraints
 - **Error Handling**: Centralized exception handling prevents information leakage
+
+### CORS Configuration
+
+The application is configured to accept requests from any origin. CORS is configured in `SecurityConfig.java`:
+
+- **Allowed Origins**: All origins (`*`)
+- **Allowed Methods**: GET, POST, PUT, DELETE, OPTIONS, PATCH
+- **Allowed Headers**: All headers
+- **Credentials**: Disabled (set to `true` if you need to send cookies)
+
+For production, consider restricting CORS to specific domains by updating `corsConfigurationSource()` in `SecurityConfig.java`.
 
 ## 🗄️ Database Migrations
 
@@ -728,26 +883,134 @@ docker run -d \
 
 This application can be deployed to:
 
+- **Render** - ✅ Fully configured (see [Render Deployment](#render-deployment) below)
 - **AWS ECS/EKS** - Using Docker containers
 - **Google Cloud Run** - Serverless container deployment
 - **Azure Container Apps** - Container-based deployment
 - **Heroku** - Using Heroku Postgres
 - **Railway** - With Railway Postgres
-- **Render** - With managed PostgreSQL
 - **DigitalOcean App Platform** - With managed database
+
+### Render Deployment
+
+This application is pre-configured for deployment to Render. The `render.yaml` file in the `server` directory defines the deployment configuration.
+
+#### Quick Deploy to Render
+
+1. **Push your code to Git** (GitHub, GitLab, or Bitbucket)
+
+2. **Create a Render Blueprint**:
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - Click "New +" → "Blueprint"
+   - Connect your Git repository
+   - Render will automatically detect the `render.yaml` file in the `server` directory
+
+3. **Review and Deploy**:
+   - Render will show you the services defined in `render.yaml`:
+     - PostgreSQL database (`urlshortener-db`)
+     - Web service (`urlshortener-app`)
+   - Click "Apply" to create the services
+   - Render will automatically:
+     - Create the PostgreSQL database
+     - Build the Docker image from the Dockerfile
+     - Deploy the application
+     - Link the database to the web service
+
+4. **Verify Deployment**:
+   ```bash
+   curl https://your-app.onrender.com/actuator/health
+   ```
+
+#### Render Configuration
+
+The `render.yaml` file includes:
+- PostgreSQL database service
+- Web service with Docker runtime
+- Environment variables configuration
+- Health check endpoint configuration
+
+The `docker-entrypoint.sh` script automatically parses Render's `DATABASE_URL` and configures Spring Boot datasource variables.
+
+#### Render Environment Variables
+
+Render automatically provides:
+- `DATABASE_URL` - PostgreSQL connection string (parsed by `docker-entrypoint.sh`)
+- `PORT` - Port the application should listen on (Spring Boot reads this automatically)
+
+You can also set:
+- `SPRING_H2_CONSOLE_ENABLED=false` - Disables H2 console in production (already set in `render.yaml`)
+
+#### Render Free Tier Notes
+
+- Services spin down after 15 minutes of inactivity
+- First request after spin-down may take 30-60 seconds (cold start)
+- Consider upgrading to paid plans for production use
+
+### Frontend Integration
+
+The API is fully configured for frontend integration:
+
+1. **CORS Enabled**: All endpoints accept cross-origin requests
+2. **No Authentication Required**: Currently, all endpoints are publicly accessible
+3. **RESTful API**: Standard REST endpoints with JSON request/response format
+4. **Error Handling**: Consistent error response format
+
+#### Example Frontend Integration (JavaScript/TypeScript)
+
+```javascript
+// Base URL - update with your Render URL
+const API_BASE_URL = 'https://your-app.onrender.com';
+
+// Register a user
+async function registerUser(username, email, password) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, email, password }),
+  });
+  return response.json();
+}
+
+// Create a short URL
+async function createShortUrl(originalUrl, userId = null) {
+  const response = await fetch(`${API_BASE_URL}/api/urls`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ originalUrl, userId }),
+  });
+  return response.json();
+}
+
+// Get URL details
+async function getUrlDetails(shortCode) {
+  const response = await fetch(`${API_BASE_URL}/api/urls/${shortCode}`);
+  return response.json();
+}
+
+// Get popular URLs
+async function getPopularUrls() {
+  const response = await fetch(`${API_BASE_URL}/api/urls/stats/popular`);
+  return response.json();
+}
+```
 
 ### Production Recommendations
 
 For production deployments:
 
-1. **Use HTTPS** - Always use HTTPS for secure communication
-2. **Configure CORS** - Update CORS settings in `SecurityConfig.java` to specific domains
+1. **Use HTTPS** - Always use HTTPS for secure communication (Render provides this automatically)
+2. **Configure CORS** - Update CORS settings in `SecurityConfig.java` to specific frontend domains
 3. **Enable Authentication** - Consider implementing authentication for protected endpoints
 4. **Enable Monitoring** - Use Spring Boot Actuator endpoints for health checks
-5. **Database Backups** - Implement regular database backup strategy
+5. **Database Backups** - Implement regular database backup strategy (Render provides automated backups on paid plans)
 6. **Rate Limiting** - Add rate limiting to prevent abuse
 7. **Logging** - Configure centralized logging (e.g., ELK stack)
-8. **Implement Authentication** - Consider adding authentication for protected endpoints if needed
+8. **Environment-Specific Configuration** - Use environment variables for different deployment environments
+9. **Upgrade Render Plan** - Consider upgrading from free tier for production workloads
 
 ## 🔍 Troubleshooting
 
