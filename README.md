@@ -214,7 +214,7 @@ curl -X POST http://localhost:8081/api/auth/login \
 > - Local (Without Docker): `http://localhost:8080`
 > - Production (Render): `https://your-app.onrender.com`
 
-> **Note:** All endpoints support CORS and can be accessed from any frontend application.
+> **Note:** All endpoints support CORS. By default, CORS is configured to allow requests from `http://localhost:5173` (for local frontend development). This can be configured via the `CORS_ALLOWED_ORIGINS` environment variable.
 
 ### 🔓 Public Endpoints (No Authentication Required)
 
@@ -720,6 +720,7 @@ The application supports the following environment variables (useful for deploym
 | `SPRING_DATASOURCE_DRIVER_CLASS_NAME` | Database driver class | `org.h2.Driver` | Auto-detected from URL |
 | `PORT` | Application port (set by Render) | `8080` | Spring Boot reads PORT automatically |
 | `SPRING_H2_CONSOLE_ENABLED` | Enable H2 console | `true` | Set to `false` in production |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` | For production, set to your frontend domain(s) |
 
 > **Note:** 
 > - The `shortUrl` field in API responses is automatically extracted from the incoming HTTP request (scheme, host, and port), so it works correctly in any environment without manual configuration.
@@ -770,7 +771,7 @@ spring.h2.console.enabled=${SPRING_H2_CONSOLE_ENABLED:true}
 
 - **Password Hashing**: All passwords are securely hashed using BCrypt before storage
 - **No Password Exposure**: User responses never include password hashes
-- **CORS Support**: Configured to allow cross-origin requests from any frontend (configurable in `SecurityConfig.java`)
+- **CORS Support**: Configured to allow cross-origin requests from `http://localhost:5173` by default (configurable via `CORS_ALLOWED_ORIGINS` environment variable)
 - **CSRF Disabled**: CSRF protection is disabled for API access
 - **Public Endpoints**: All endpoints are currently publicly accessible
 - **Input Validation**: All inputs are validated against defined constraints
@@ -778,14 +779,39 @@ spring.h2.console.enabled=${SPRING_H2_CONSOLE_ENABLED:true}
 
 ### CORS Configuration
 
-The application is configured to accept requests from any origin. CORS is configured in `SecurityConfig.java`:
+The application is configured to accept requests from specific origins. CORS is configured in `SecurityConfig.java`:
 
-- **Allowed Origins**: All origins (`*`)
+- **Allowed Origins**: `http://localhost:5173` (default, for local frontend development)
+  - Can be configured via `CORS_ALLOWED_ORIGINS` environment variable
+  - Supports multiple origins (comma-separated): `http://localhost:5173,https://yourdomain.com`
 - **Allowed Methods**: GET, POST, PUT, DELETE, OPTIONS, PATCH
 - **Allowed Headers**: All headers
-- **Credentials**: Disabled (set to `true` if you need to send cookies)
+- **Credentials**: Enabled (allows cookies for session-based authentication)
 
-For production, consider restricting CORS to specific domains by updating `corsConfigurationSource()` in `SecurityConfig.java`.
+#### Configuring CORS
+
+**For Local Development:**
+- Default configuration allows `http://localhost:5173`
+- No configuration needed if your frontend runs on port 5173
+
+**For Production:**
+Set the `CORS_ALLOWED_ORIGINS` environment variable to your frontend domain(s):
+
+```bash
+# Single origin
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
+
+# Multiple origins (comma-separated)
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+```
+
+**In Render:**
+Add to your `render.yaml` or set in the Render dashboard:
+```yaml
+envVars:
+  - key: CORS_ALLOWED_ORIGINS
+    value: https://your-frontend-domain.com
+```
 
 ## 🗄️ Database Migrations
 
@@ -950,10 +976,11 @@ You can also set:
 
 The API is fully configured for frontend integration:
 
-1. **CORS Enabled**: All endpoints accept cross-origin requests
+1. **CORS Enabled**: All endpoints accept cross-origin requests from `http://localhost:5173` by default
 2. **No Authentication Required**: Currently, all endpoints are publicly accessible
 3. **RESTful API**: Standard REST endpoints with JSON request/response format
 4. **Error Handling**: Consistent error response format
+5. **Credentials Support**: CORS is configured to allow credentials (cookies) for future session-based authentication
 
 #### Example Frontend Integration (JavaScript/TypeScript)
 
