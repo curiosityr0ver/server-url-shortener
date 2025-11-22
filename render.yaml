@@ -1,0 +1,24 @@
+services:
+  # PostgreSQL Database
+  - type: pspg
+    name: urlshortener-db
+    databaseName: urlshortener
+    user: admin
+    plan: free  # Change to 'starter' or 'standard' for production
+
+  # Spring Boot Web Service
+  - type: web
+    name: urlshortener-app
+    runtime: docker
+    plan: free  # Change to 'starter' or 'standard' for production
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    envVars:
+      # Disable H2 console in production
+      - key: SPRING_H2_CONSOLE_ENABLED
+        value: false
+      # Note: DATABASE_URL will be automatically provided by Render when you link
+      # the urlshortener-db database to this service in the Render dashboard.
+      # The docker-entrypoint.sh script will parse DATABASE_URL and set Spring Boot variables.
+    healthCheckPath: /actuator/health
+
