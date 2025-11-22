@@ -15,7 +15,6 @@ A Spring Boot-based URL shortener application with PostgreSQL database and conta
 - [Complete API Examples](#complete-api-examples)
 - [Frontend Integration](#frontend-integration)
 - [Configuration](#configuration)
-- [Database Migrations](#database-migrations)
 - [Deployment](#deployment)
   - [Render Deployment](#render-deployment)
 - [Production Recommendations](#production-recommendations)
@@ -36,7 +35,6 @@ Before running this application, ensure you have the following installed:
 - **Java 21** - Programming language
 - **Spring Security** - Authentication and authorization
 - **PostgreSQL 16** - Database
-- **Flyway** - Database migration tool
 - **Spring Data JPA** - Data persistence
 - **Spring Boot Actuator** - Health checks and monitoring
 - **Docker** - Containerization
@@ -58,8 +56,7 @@ server/
 │   │   │       ├── security/        # Security config
 │   │   │       └── util/            # Utilities
 │   │   └── resources/
-│   │       ├── application.properties
-│   │       └── db/migration/        # Flyway migration scripts
+│   │       └── application.properties
 │   └── test/                        # Test files
 ├── Dockerfile                       # Application container definition
 ├── docker-compose.yml               # Multi-container orchestration
@@ -76,8 +73,8 @@ This is the **recommended** approach for local development as it ensures consist
 #### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd server
+git clone https://github.com/curiosityr0ver/server-url-shortener.git
+cd server-url-shortener/server
 ```
 
 #### Step 2: Build and Run with Docker Compose
@@ -90,7 +87,6 @@ This command will:
 - Build the Spring Boot application Docker image
 - Pull the PostgreSQL 16 Alpine image
 - Start both containers with proper networking
-- Run Flyway migrations automatically
 - Expose the application on port **8081**
 - Expose PostgreSQL on port **5434**
 
@@ -861,35 +857,6 @@ envVars:
     value: https://your-frontend-domain.com
 ```
 
-## 🗄️ Database Migrations
-
-This project uses **Flyway** for database version control. Migration scripts are located in:
-
-```
-src/main/resources/db/migration/
-```
-
-### Migration Naming Convention
-
-Flyway migrations follow the pattern: `V{version}__{description}.sql`
-
-Example: `V1__create_tables.sql`
-
-### Running Migrations
-
-Migrations run automatically when the application starts. To run migrations manually:
-
-```bash
-mvn flyway:migrate
-```
-
-### Creating New Migrations
-
-1. Create a new SQL file in `src/main/resources/db/migration/`
-2. Follow the naming convention: `V{next_version}__{description}.sql`
-3. Write your DDL/DML statements
-4. Restart the application (migrations will run automatically)
-
 ## 🚢 Deployment
 
 ### Building the Application
@@ -1142,18 +1109,7 @@ ports:
 - Ensure user exists in the database
 - Check that password was hashed correctly during registration
 
-#### 5. Flyway Migration Failed
-
-**Error:** `FlywayException: Validate failed`
-
-**Solution:**
-```bash
-# Clean the database and restart
-docker-compose down -v
-docker-compose up --build
-```
-
-#### 6. Application Won't Start
+#### 4. Application Won't Start
 
 **Solution:**
 ```bash
@@ -1219,19 +1175,12 @@ SELECT * FROM urls;
 - Data will be lost when containers are removed (`docker-compose down`)
 - For production, always use an external managed PostgreSQL service
 - The application uses health checks to ensure proper startup order
-- Flyway migrations run automatically on application startup
 - Tests are skipped by default in builds (configured in `pom.xml`)
-
-## 📄 License
-
-*(Add your license information here)*
-
-## 👥 Contributors
-
-*(Add contributor information here)*
 
 ---
 
+**Repository:** [https://github.com/curiosityr0ver/server-url-shortener](https://github.com/curiosityr0ver/server-url-shortener)
+
 **Need Help?** 
-- Open an issue or contact the development team
+- Open an issue on [GitHub](https://github.com/curiosityr0ver/server-url-shortener/issues)
 - Review the comprehensive documentation
