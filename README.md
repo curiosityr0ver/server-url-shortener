@@ -73,7 +73,7 @@ This is the **recommended** approach for local development as it ensures consist
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/curiosityr0ver/server-url-shortener.git
+git clone https://github.com/curiosityr0ver/server-url-shortener
 cd server-url-shortener/server
 ```
 
