@@ -1,6 +1,6 @@
 # URL Shortener Service
 
-A Spring Boot-based URL shortener application with JWT authentication, PostgreSQL database, and containerized deployment using Docker.
+A Spring Boot-based URL shortener application with PostgreSQL database and containerized deployment using Docker.
 
 ## 📋 Table of Contents
 
@@ -31,7 +31,6 @@ Before running this application, ensure you have the following installed:
 - **Spring Boot 3.5.7** - Application framework
 - **Java 21** - Programming language
 - **Spring Security** - Authentication and authorization
-- **JWT (JSON Web Tokens)** - Stateless authentication
 - **PostgreSQL 16** - Database
 - **Flyway** - Database migration tool
 - **Spring Data JPA** - Data persistence
@@ -52,7 +51,7 @@ server/
 │   │   │       ├── repository/      # Data access
 │   │   │       ├── model/           # Entity models
 │   │   │       ├── dto/             # Data transfer objects
-│   │   │       ├── security/        # JWT & Security config
+│   │   │       ├── security/        # Security config
 │   │   │       └── util/            # Utilities
 │   │   └── resources/
 │   │       ├── application.properties
@@ -61,8 +60,6 @@ server/
 ├── Dockerfile                       # Application container definition
 ├── docker-compose.yml               # Multi-container orchestration
 ├── pom.xml                          # Maven dependencies
-├── AUTHENTICATION.md                # Detailed auth guide
-├── JWT_QUICK_REFERENCE.md          # JWT quick reference
 └── README.md                        # This file
 ```
 
@@ -166,7 +163,7 @@ The application will start on port **8080**.
 
 ## 🔐 Authentication
 
-This application uses **JWT (JSON Web Token)** based authentication for securing API endpoints.
+This application uses **session-based authentication** for securing API endpoints.
 
 ### Quick Start with Authentication
 
@@ -181,7 +178,7 @@ curl -X POST http://localhost:8081/api/auth/register \
   }'
 ```
 
-**Step 2: Login and Get Token**
+**Step 2: Login**
 ```bash
 curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
@@ -194,27 +191,12 @@ curl -X POST http://localhost:8081/api/auth/login \
 **Response:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwiaWF0IjoxNzM..."
+  "message": "Login successful",
+  "username": "john"
 }
 ```
 
-**Step 3: Use Token for Protected Endpoints**
-```bash
-curl -X POST http://localhost:8081/api/urls \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -d '{
-    "originalUrl": "https://www.google.com",
-    "userId": 1
-  }'
-```
-
-### Token Details
-- **Expiration**: 10 hours
-- **Algorithm**: HS256 (HMAC-SHA256)
-- **Header Format**: `Authorization: Bearer <token>`
-
-For complete authentication documentation, see [AUTHENTICATION.md](AUTHENTICATION.md).
+**Note:** After successful login, the session is maintained via cookies. For protected endpoints, ensure cookies are sent with subsequent requests.
 
 ## 🔌 API Endpoints
 
@@ -226,17 +208,12 @@ For complete authentication documentation, see [AUTHENTICATION.md](AUTHENTICATIO
 |--------|----------|-------------|
 | GET | `/actuator/health` | Application health check |
 | POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login and receive JWT token |
+| POST | `/api/auth/login` | Login (returns success message) |
 | GET | `/{shortCode}` | Redirect to original URL (tracks hits) |
-| GET | `/api/test/jwt` | Test JWT token validation (query param: `token`) |
-| GET | `/api/test/generate-and-validate` | Generate and validate a test JWT token |
 
-### 🔒 Protected Endpoints (Requires JWT Token)
+### 🔒 Protected Endpoints
 
-All protected endpoints require the `Authorization` header:
-```
-Authorization: Bearer <your-jwt-token>
-```
+Currently, all endpoints are publicly accessible. Authentication endpoints are available for user registration and login, but authentication is not enforced on API endpoints.
 
 #### URL Management
 
@@ -281,7 +258,7 @@ curl -X POST http://localhost:8081/api/auth/register \
 User registered successfully
 ```
 
-**2. Login to Get JWT Token**
+**2. Login**
 ```bash
 curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
@@ -294,17 +271,17 @@ curl -X POST http://localhost:8081/api/auth/login \
 **Response:** `200 OK`
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlciIsImlhdCI6MTczNzQ3MDQwMCwiZXhwIjoxNzM3NTA2NDAwfQ.xxx"
+  "message": "Login successful",
+  "username": "testuser"
 }
 ```
 
-### URL Shortening (with Authentication)
+### URL Shortening
 
 **1. Create Auto-Generated Short URL**
 ```bash
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_TOKEN>" \
   -d '{
     "originalUrl": "https://www.google.com",
     "userId": 1
@@ -331,7 +308,6 @@ curl -X POST http://localhost:8081/api/urls \
 ```bash
 curl -X POST http://localhost:8081/api/urls/custom \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_TOKEN>" \
   -d '{
     "originalUrl": "https://www.github.com",
     "customShortCode": "github",
@@ -343,7 +319,6 @@ curl -X POST http://localhost:8081/api/urls/custom \
 ```bash
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_TOKEN>" \
   -d '{
     "originalUrl": "https://www.example.com",
     "userId": 1,
@@ -353,8 +328,7 @@ curl -X POST http://localhost:8081/api/urls \
 
 **4. Get URL Details (No Redirect, No Hit Count)**
 ```bash
-curl http://localhost:8081/api/urls/aB3xY7K \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl http://localhost:8081/api/urls/aB3xY7K
 ```
 
 **5. Test Public Redirect (No Auth Required)**
@@ -368,14 +342,12 @@ curl -I http://localhost:8081/aB3xY7K
 
 **6. Get All URLs for a User**
 ```bash
-curl http://localhost:8081/api/users/1/urls \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl http://localhost:8081/api/users/1/urls
 ```
 
 **7. Get Most Popular URLs**
 ```bash
-curl http://localhost:8081/api/urls/stats/popular \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl http://localhost:8081/api/urls/stats/popular
 ```
 
 **Response:**
@@ -410,16 +382,14 @@ curl http://localhost:8081/api/urls/stats/popular \
 
 **8. Delete a URL**
 ```bash
-curl -X DELETE http://localhost:8081/api/urls/1 \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl -X DELETE http://localhost:8081/api/urls/1
 ```
 
 **Response:** `204 No Content`
 
 **9. Delete All Expired URLs**
 ```bash
-curl -X DELETE http://localhost:8081/api/urls/expired \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl -X DELETE http://localhost:8081/api/urls/expired
 ```
 
 **Response:** `200 OK`
@@ -428,13 +398,12 @@ curl -X DELETE http://localhost:8081/api/urls/expired \
 ```
 (The number represents the count of deleted URLs)
 
-### User Management (with Authentication)
+### User Management
 
 **1. Create a User (Alternative to Registration)**
 ```bash
 curl -X POST http://localhost:8081/api/users \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_TOKEN>" \
   -d '{
     "username": "john_doe",
     "email": "john@example.com",
@@ -453,27 +422,23 @@ curl -X POST http://localhost:8081/api/users \
 
 **2. Get User by ID**
 ```bash
-curl http://localhost:8081/api/users/1 \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl http://localhost:8081/api/users/1
 ```
 
 **3. Get User by Username**
 ```bash
-curl http://localhost:8081/api/users/username/john_doe \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl http://localhost:8081/api/users/username/john_doe
 ```
 
 **4. Get User by Email**
 ```bash
-curl http://localhost:8081/api/users/email/john@example.com \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl http://localhost:8081/api/users/email/john@example.com
 ```
 
 **5. Update User**
 ```bash
 curl -X PUT http://localhost:8081/api/users/1 \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_TOKEN>" \
   -d '{
     "username": "john_doe",
     "email": "newemail@example.com",
@@ -483,8 +448,7 @@ curl -X PUT http://localhost:8081/api/users/1 \
 
 **6. Delete User**
 ```bash
-curl -X DELETE http://localhost:8081/api/users/1 \
-  -H "Authorization: Bearer <YOUR_TOKEN>"
+curl -X DELETE http://localhost:8081/api/users/1
 ```
 
 **Response:** `204 No Content`
@@ -502,33 +466,27 @@ curl -X POST http://localhost:8081/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
 
-# 3. Login and save the token (public)
-TOKEN=$(curl -s -X POST http://localhost:8081/api/auth/login \
+# 3. Login (public)
+curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"password123"}' | jq -r '.token')
+  -d '{"username":"testuser","password":"password123"}'
 
-echo "Token: $TOKEN"
-
-# 4. Create a short URL (protected - needs token)
+# 4. Create a short URL
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
   -d '{"originalUrl":"https://www.google.com","userId":1}'
 
-# 5. Test the redirect (public - no token needed)
+# 5. Test the redirect (public)
 curl -L http://localhost:8081/{shortCode}
 
-# 6. Check URL statistics (protected)
-curl http://localhost:8081/api/urls/{shortCode} \
-  -H "Authorization: Bearer $TOKEN"
+# 6. Check URL statistics
+curl http://localhost:8081/api/urls/{shortCode}
 
-# 7. View all URLs created by the user (protected)
-curl http://localhost:8081/api/users/1/urls \
-  -H "Authorization: Bearer $TOKEN"
+# 7. View all URLs created by the user
+curl http://localhost:8081/api/users/1/urls
 
-# 8. Check popular URLs (protected)
-curl http://localhost:8081/api/urls/stats/popular \
-  -H "Authorization: Bearer $TOKEN"
+# 8. Check popular URLs
+curl http://localhost:8081/api/urls/stats/popular
 ```
 
 ### Testing on Windows (PowerShell)
@@ -536,19 +494,18 @@ curl http://localhost:8081/api/urls/stats/popular \
 If you are using PowerShell on Windows, use these commands:
 
 ```powershell
-# 1. Login and store token
+# 1. Login
 $body = @{ username = "testuser"; password = "password123" } | ConvertTo-Json
 $response = Invoke-WebRequest -Uri http://localhost:8081/api/auth/login -Method POST -Body $body -ContentType "application/json"
-$token = ($response.Content | ConvertFrom-Json).token
+$response.Content
 
 # 2. Create a short URL
-$headers = @{ Authorization = "Bearer $token" }
 $body = @{ originalUrl = "https://www.google.com" } | ConvertTo-Json
-$urlResponse = Invoke-WebRequest -Uri http://localhost:8081/api/urls -Method POST -Body $body -ContentType "application/json" -Headers $headers
+$urlResponse = Invoke-WebRequest -Uri http://localhost:8081/api/urls -Method POST -Body $body -ContentType "application/json"
 $urlResponse.Content
 
 # 3. Get URL Details
-Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular -Headers $headers
+Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular
 ```
 
 ### Validation Rules
@@ -566,22 +523,14 @@ Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular -Headers $he
 
 ### Error Responses
 
-**Unauthorized (401 Unauthorized)** - Missing or invalid JWT token (from JwtAuthenticationFilter):
-```json
-{
-  "error": "JWT token has expired",
-  "status": "401"
-}
-```
-
-**Unauthorized (401 Unauthorized)** - Invalid credentials (from AuthController):
+**Unauthorized (401 Unauthorized)** - Invalid credentials:
 ```json
 {
   "error": "Incorrect username or password"
 }
 ```
 
-**Forbidden (403 Forbidden)** - No token provided (Spring Security default):
+**Forbidden (403 Forbidden)** - Access denied:
 ```json
 {
   "status": 403,
@@ -633,7 +582,6 @@ The application supports the following environment variables (useful for deploym
 | `SPRING_DATASOURCE_USERNAME` | Database username | `admin` |
 | `SPRING_DATASOURCE_PASSWORD` | Database password | `admin` |
 | `SERVER_PORT` | Application port | `8080` |
-| `JWT_SECRET` | JWT signing secret (recommended for production) | Default dev secret provided |
 
 > **Note:** The `shortUrl` field in API responses is automatically extracted from the incoming HTTP request (scheme, host, and port), so it works correctly in any environment without manual configuration.
 
@@ -678,11 +626,9 @@ server.port=8080
 
 ### Security Features
 
-- **JWT Authentication**: Stateless token-based authentication
 - **Password Hashing**: All passwords are securely hashed using BCrypt before storage
 - **No Password Exposure**: User responses never include password hashes
-- **Token Expiration**: JWT tokens expire after 10 hours
-- **Public Endpoints**: Strategic endpoints (auth, redirect) remain public
+- **Public Endpoints**: All endpoints are currently publicly accessible
 - **Input Validation**: All inputs are validated against defined constraints
 - **Error Handling**: Centralized exception handling prevents information leakage
 
@@ -794,14 +740,14 @@ This application can be deployed to:
 
 For production deployments:
 
-1. **Use HTTPS** - Always use HTTPS for secure token transmission
-2. **Set JWT Secret** - Use environment variable `JWT_SECRET` for consistent signing
-3. **Configure CORS** - Update CORS settings in `SecurityConfig.java` to specific domains
+1. **Use HTTPS** - Always use HTTPS for secure communication
+2. **Configure CORS** - Update CORS settings in `SecurityConfig.java` to specific domains
+3. **Enable Authentication** - Consider implementing authentication for protected endpoints
 4. **Enable Monitoring** - Use Spring Boot Actuator endpoints for health checks
 5. **Database Backups** - Implement regular database backup strategy
 6. **Rate Limiting** - Add rate limiting to prevent abuse
 7. **Logging** - Configure centralized logging (e.g., ELK stack)
-8. **Refresh Tokens** - Consider implementing refresh tokens for better UX
+8. **Implement Authentication** - Consider adding authentication for protected endpoints if needed
 
 ## 🔍 Troubleshooting
 
@@ -831,22 +777,14 @@ ports:
 - Check credentials in `docker-compose.yml` match `application.properties`
 - Ensure the database exists: `urlshortener`
 
-#### 3. JWT Token Expired
+#### 3. Unauthorized Access
 
-**Error:** `401 Unauthorized` after some time
-
-**Solution:**
-- Tokens expire after 10 hours
-- Re-authenticate using `/api/auth/login` to get a new token
-
-#### 4. Unauthorized Access
-
-**Error:** `403 Forbidden` when accessing protected endpoints
+**Error:** `401 Unauthorized` when logging in
 
 **Solution:**
-- Ensure you're including the `Authorization` header
-- Format: `Authorization: Bearer <token>`
-- Verify token is valid and not expired
+- Verify username and password are correct
+- Ensure user exists in the database
+- Check that password was hashed correctly during registration
 
 #### 5. Flyway Migration Failed
 
@@ -918,11 +856,6 @@ SELECT * FROM urls;
 
 ## 📚 Additional Documentation
 
-- **[AUTHENTICATION.md](AUTHENTICATION.md)** - Comprehensive JWT authentication guide
-- **[JWT_QUICK_REFERENCE.md](JWT_QUICK_REFERENCE.md)** - Quick JWT reference
-- **[JWT_EXAMPLES.md](JWT_EXAMPLES.md)** - Code examples in multiple languages
-- **[JWT_FLOW_DIAGRAM.md](JWT_FLOW_DIAGRAM.md)** - Visual authentication flows
-- **[JWT_STATUS.md](JWT_STATUS.md)** - Implementation status
 
 ## 📝 Notes
 
@@ -944,6 +877,5 @@ SELECT * FROM urls;
 ---
 
 **Need Help?** 
-- Check the [AUTHENTICATION.md](AUTHENTICATION.md) for auth-related questions
 - Open an issue or contact the development team
-- Review the comprehensive documentation in the `docs/` directory
+- Review the comprehensive documentation

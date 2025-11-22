@@ -1,12 +1,8 @@
 package com._cortex.url_management.controller;
 
-import com._cortex.url_management.dto.CreateUserRequest;
-import com._cortex.url_management.dto.JwtResponse;
-import com._cortex.url_management.dto.LoginRequest;
-import com._cortex.url_management.model.User;
-import com._cortex.url_management.security.JwtUtil;
-import com._cortex.url_management.service.UserService;
-import lombok.RequiredArgsConstructor;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -14,12 +10,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
+import com._cortex.url_management.dto.CreateUserRequest;
+import com._cortex.url_management.dto.LoginRequest;
+import com._cortex.url_management.model.User;
+import com._cortex.url_management.service.UserService;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,8 +31,6 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
-    private final JwtUtil jwtUtil;
-    private final UserDetailsService userDetailsService;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody CreateUserRequest request) {
@@ -53,13 +53,21 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody LoginRequest authenticationRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(authenticationRequest.getUsername(),
-                            authenticationRequest.getPassword()));
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
+                            loginRequest.getPassword()));
+            
+            logger.info("User logged in successfully: {}", loginRequest.getUsername());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Login successful");
+            response.put("username", authentication.getName());
+            
+            return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {
-            logger.warn("Authentication failed for user: {}", authenticationRequest.getUsername());
+            logger.warn("Authentication failed for user: {}", loginRequest.getUsername());
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "Incorrect username or password");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
@@ -68,21 +76,6 @@ public class AuthController {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "Authentication failed: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
-        }
-
-        try {
-            final UserDetails userDetails = userDetailsService
-                    .loadUserByUsername(authenticationRequest.getUsername());
-
-            final String jwt = jwtUtil.generateToken(userDetails);
-            logger.info("JWT token generated successfully for user: {}", authenticationRequest.getUsername());
-
-            return ResponseEntity.ok(new JwtResponse(jwt));
-        } catch (Exception e) {
-            logger.error("Error generating JWT token: {}", e.getMessage(), e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to generate authentication token");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }

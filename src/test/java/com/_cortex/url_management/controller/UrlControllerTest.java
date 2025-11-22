@@ -21,8 +21,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com._cortex.url_management.model.Url;
 import com._cortex.url_management.model.User;
-import com._cortex.url_management.security.JwtAuthenticationFilter;
-import com._cortex.url_management.security.JwtUtil;
 import com._cortex.url_management.security.SecurityConfig;
 import com._cortex.url_management.service.CustomUserDetailsService;
 import com._cortex.url_management.service.UrlService;
@@ -43,12 +41,6 @@ public class UrlControllerTest {
 
         @MockBean
         private UserService userService;
-
-        @MockBean
-        private JwtUtil jwtUtil;
-
-        @MockBean
-        private JwtAuthenticationFilter jwtAuthenticationFilter;
 
         @MockBean
         private CustomUserDetailsService customUserDetailsService;
@@ -207,11 +199,19 @@ public class UrlControllerTest {
         }
 
         @Test
-        public void testCreateShortUrl_Unauthorized() throws Exception {
-                // Act & Assert - No @WithMockUser, should be forbidden
+        public void testCreateShortUrl_NoAuthRequired() throws Exception {
+                // Arrange
+                User user = new User(1L, "testuser", "test@example.com", "hashedpass");
+                Url url = new Url(
+                                1L, "abc123", "https://example.com", user,
+                                Instant.now(), null, null, 0L);
+
+                when(urlService.createShortUrl(anyString(), isNull(), isNull())).thenReturn(url);
+
+                // Act & Assert - All endpoints are now public, no authentication required
                 mockMvc.perform(post("/api/urls")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"originalUrl\":\"https://example.com\"}"))
-                                .andExpect(status().isForbidden());
+                                .andExpect(status().isCreated());
         }
 }
