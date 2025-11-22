@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  - type: pg
+  - type: postgres
     name: urlshortener-db
     databaseName: urlshortener
     user: admin
