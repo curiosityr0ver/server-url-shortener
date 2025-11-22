@@ -15,7 +15,11 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Install curl for health checks
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl bash
+
+# Copy the entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy the built jar from build stage
 COPY --from=build /app/target/*.jar app.jar
@@ -23,5 +27,6 @@ COPY --from=build /app/target/*.jar app.jar
 # Expose port
 EXPOSE 8080
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Use entrypoint script to handle DATABASE_URL parsing
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["java", "-jar", "app.jar"]
