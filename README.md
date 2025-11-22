@@ -205,7 +205,11 @@ curl -X POST http://localhost:8081/api/auth/login \
 }
 ```
 
-**Note:** Currently, authentication is not enforced on API endpoints. All endpoints are publicly accessible. The authentication system is in place for future use.
+**Note:** 
+- Currently, authentication is **not enforced** on API endpoints. All endpoints are publicly accessible.
+- **Guest users can create URLs** without logging in by omitting the `userId` field.
+- **Authenticated users** can optionally provide `userId` to associate URLs with their account.
+- The authentication system is in place for future use (e.g., user-specific URL management, analytics).
 
 ## 🔌 API Endpoints
 
@@ -227,10 +231,12 @@ curl -X POST http://localhost:8081/api/auth/login \
 
 ### 📋 URL Management Endpoints
 
+> **Note:** URL creation is available to **both guest users and authenticated users**. The `userId` field is **optional**. If not provided, the URL will be created as a guest URL (not associated with any user).
+
 | Method | Endpoint | Description | Request Body | Response Code |
 |--------|----------|-------------|--------------|----------------|
-| POST | `/api/urls` | Create auto-generated short URL | `{"originalUrl": "https://...", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` | 201 |
-| POST | `/api/urls/custom` | Create custom short URL | `{"originalUrl": "https://...", "customShortCode": "mylink", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` | 201 |
+| POST | `/api/urls` | Create auto-generated short URL (guest or authenticated) | `{"originalUrl": "https://..."}` or `{"originalUrl": "https://...", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` | 201 |
+| POST | `/api/urls/custom` | Create custom short URL (guest or authenticated) | `{"originalUrl": "https://...", "customShortCode": "mylink"}` or `{"originalUrl": "https://...", "customShortCode": "mylink", "userId": 1, "expireAt": "2024-12-31T23:59:59Z"}` | 201 |
 | GET | `/api/urls/{shortCode}` | Get URL details (without redirect, no hit tracking) | - | 200 |
 | DELETE | `/api/urls/{id}` | Delete URL by ID | - | 204 |
 | GET | `/api/users/{userId}/urls` | Get all URLs created by a user | - | 200 |
@@ -288,7 +294,32 @@ curl -X POST http://localhost:8081/api/auth/login \
 
 ### URL Shortening
 
-**1. Create Auto-Generated Short URL**
+**1. Create Auto-Generated Short URL (Guest User - No Login Required)**
+```bash
+curl -X POST http://localhost:8081/api/urls \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalUrl": "https://www.google.com"
+  }'
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 1,
+  "shortCode": "aB3xY7K",
+  "shortUrl": "http://localhost:8081/aB3xY7K",
+  "originalUrl": "https://www.google.com",
+  "createdByUserId": null,
+  "createdByUsername": null,
+  "createdAt": "2025-01-21T10:30:00Z",
+  "lastAccessedAt": null,
+  "expireAt": null,
+  "hits": 0
+}
+```
+
+**1b. Create Auto-Generated Short URL (Authenticated User)**
 ```bash
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
@@ -301,20 +332,46 @@ curl -X POST http://localhost:8081/api/urls \
 **Response:** `201 Created`
 ```json
 {
-  "id": 1,
-  "shortCode": "aB3xY7K",
-  "shortUrl": "http://localhost:8081/aB3xY7K",
+  "id": 2,
+  "shortCode": "xY9zK2m",
+  "shortUrl": "http://localhost:8081/xY9zK2m",
   "originalUrl": "https://www.google.com",
   "createdByUserId": 1,
   "createdByUsername": "testuser",
-  "createdAt": "2025-01-21T10:30:00Z",
+  "createdAt": "2025-01-21T10:35:00Z",
   "lastAccessedAt": null,
   "expireAt": null,
   "hits": 0
 }
 ```
 
-**2. Create Custom Short URL**
+**2. Create Custom Short URL (Guest User - No Login Required)**
+```bash
+curl -X POST http://localhost:8081/api/urls/custom \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalUrl": "https://www.github.com",
+    "customShortCode": "github"
+  }'
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 2,
+  "shortCode": "github",
+  "shortUrl": "http://localhost:8081/github",
+  "originalUrl": "https://www.github.com",
+  "createdByUserId": null,
+  "createdByUsername": null,
+  "createdAt": "2025-01-21T10:35:00Z",
+  "lastAccessedAt": null,
+  "expireAt": null,
+  "hits": 0
+}
+```
+
+**2b. Create Custom Short URL (Authenticated User)**
 ```bash
 curl -X POST http://localhost:8081/api/urls/custom \
   -H "Content-Type: application/json" \
@@ -328,33 +385,30 @@ curl -X POST http://localhost:8081/api/urls/custom \
 **Response:** `201 Created`
 ```json
 {
-  "id": 2,
+  "id": 3,
   "shortCode": "github",
   "shortUrl": "http://localhost:8081/github",
   "originalUrl": "https://www.github.com",
   "createdByUserId": 1,
   "createdByUsername": "testuser",
-  "createdAt": "2025-01-21T10:35:00Z",
+  "createdAt": "2025-01-21T10:40:00Z",
   "lastAccessedAt": null,
   "expireAt": null,
   "hits": 0
 }
 ```
 
-**3. Create Custom Short URL with Expiration**
+**3. Create URL with Expiration (Guest or Authenticated)**
 ```bash
-curl -X POST http://localhost:8081/api/urls/custom \
+# Guest user
+curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
   -d '{
-    "originalUrl": "https://www.github.com",
-    "customShortCode": "github",
-    "userId": 1,
+    "originalUrl": "https://www.example.com",
     "expireAt": "2024-12-31T23:59:59Z"
   }'
-```
 
-**4. Create URL with Expiration**
-```bash
+# Authenticated user
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
   -d '{
@@ -364,23 +418,7 @@ curl -X POST http://localhost:8081/api/urls \
   }'
 ```
 
-**Response:** `201 Created`
-```json
-{
-  "id": 3,
-  "shortCode": "xY9zK2m",
-  "shortUrl": "http://localhost:8081/xY9zK2m",
-  "originalUrl": "https://www.example.com",
-  "createdByUserId": 1,
-  "createdByUsername": "testuser",
-  "createdAt": "2025-01-21T10:40:00Z",
-  "lastAccessedAt": null,
-  "expireAt": "2024-12-31T23:59:59Z",
-  "hits": 0
-}
-```
-
-**5. Get URL Details (No Redirect, No Hit Count)**
+**4. Get URL Details (No Redirect, No Hit Count)**
 ```bash
 curl http://localhost:8081/api/urls/aB3xY7K
 ```
@@ -392,8 +430,8 @@ curl http://localhost:8081/api/urls/aB3xY7K
   "shortCode": "aB3xY7K",
   "shortUrl": "http://localhost:8081/aB3xY7K",
   "originalUrl": "https://www.google.com",
-  "createdByUserId": 1,
-  "createdByUsername": "testuser",
+  "createdByUserId": null,
+  "createdByUsername": null,
   "createdAt": "2025-01-21T10:30:00Z",
   "lastAccessedAt": null,
   "expireAt": null,
@@ -401,7 +439,7 @@ curl http://localhost:8081/api/urls/aB3xY7K
 }
 ```
 
-**6. Test Public Redirect (No Auth Required)**
+**5. Test Public Redirect (No Auth Required)**
 ```bash
 # Follow redirects with -L flag
 curl -L http://localhost:8081/aB3xY7K
@@ -418,12 +456,12 @@ Location: https://www.google.com
 
 **Note:** This endpoint tracks hits. Each access increments the `hits` counter and updates `lastAccessedAt`.
 
-**7. Get All URLs for a User**
+**6. Get All URLs for a User** (Requires userId)
 ```bash
 curl http://localhost:8081/api/users/1/urls
 ```
 
-**8. Get Most Popular URLs**
+**7. Get Most Popular URLs**
 ```bash
 curl http://localhost:8081/api/urls/stats/popular
 ```
@@ -460,14 +498,14 @@ curl http://localhost:8081/api/urls/stats/popular
 
 **Note:** Returns top 10 URLs ordered by hit count (descending).
 
-**9. Delete a URL**
+**8. Delete a URL**
 ```bash
 curl -X DELETE http://localhost:8081/api/urls/1
 ```
 
 **Response:** `204 No Content`
 
-**10. Delete All Expired URLs**
+**9. Delete All Expired URLs**
 ```bash
 curl -X DELETE http://localhost:8081/api/urls/expired
 ```
@@ -589,7 +627,12 @@ curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"password123"}'
 
-# 4. Create a short URL
+# 4. Create a short URL (as guest - no userId required)
+curl -X POST http://localhost:8081/api/urls \
+  -H "Content-Type: application/json" \
+  -d '{"originalUrl":"https://www.google.com"}'
+
+# Or create as authenticated user (with userId)
 curl -X POST http://localhost:8081/api/urls \
   -H "Content-Type: application/json" \
   -d '{"originalUrl":"https://www.google.com","userId":1}'
@@ -629,10 +672,15 @@ Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular
 ### Validation Rules
 
 **URLs:**
-- `originalUrl`: Required, must start with `http://` or `https://`, max 2048 characters
-- `customShortCode`: Required for `/api/urls/custom`, 3-20 alphanumeric characters `[0-9A-Za-z]`, must be unique
-- `userId`: Optional, must be a valid user ID if provided
-- `expireAt`: Optional, ISO 8601 timestamp format (e.g., `"2024-12-31T23:59:59Z"`)
+- `originalUrl`: **Required**, must start with `http://` or `https://`, max 2048 characters
+- `customShortCode`: **Required** for `/api/urls/custom`, 3-20 alphanumeric characters `[0-9A-Za-z]`, must be unique
+- `userId`: **Optional** - If not provided, URL is created as a guest URL (not associated with any user). If provided, must be a valid user ID.
+- `expireAt`: **Optional**, ISO 8601 timestamp format (e.g., `"2024-12-31T23:59:59Z"`)
+
+> **Important:** 
+> - **Guest users can create URLs** without providing `userId`
+> - **Authenticated users** can optionally provide `userId` to associate URLs with their account
+> - Guest URLs will have `createdByUserId` and `createdByUsername` set to `null` in the response
 
 **Users:**
 - `username`: Required, 3-150 characters, unique
@@ -978,9 +1026,11 @@ The API is fully configured for frontend integration:
 
 1. **CORS Enabled**: All endpoints accept cross-origin requests from `http://localhost:5173` by default
 2. **No Authentication Required**: Currently, all endpoints are publicly accessible
-3. **RESTful API**: Standard REST endpoints with JSON request/response format
-4. **Error Handling**: Consistent error response format
-5. **Credentials Support**: CORS is configured to allow credentials (cookies) for future session-based authentication
+3. **Guest URL Creation**: Users can create shortened URLs without logging in (omit `userId` field)
+4. **Optional User Association**: Authenticated users can optionally provide `userId` to associate URLs with their account
+5. **RESTful API**: Standard REST endpoints with JSON request/response format
+6. **Error Handling**: Consistent error response format
+7. **Credentials Support**: CORS is configured to allow credentials (cookies) for future session-based authentication
 
 #### Example Frontend Integration (JavaScript/TypeScript)
 
@@ -1000,14 +1050,30 @@ async function registerUser(username, email, password) {
   return response.json();
 }
 
-// Create a short URL
+// Create a short URL (guest user - no userId required)
 async function createShortUrl(originalUrl, userId = null) {
+  const body = userId ? { originalUrl, userId } : { originalUrl };
   const response = await fetch(`${API_BASE_URL}/api/urls`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ originalUrl, userId }),
+    body: JSON.stringify(body),
+  });
+  return response.json();
+}
+
+// Create a custom short URL (guest user)
+async function createCustomShortUrl(originalUrl, customShortCode, userId = null) {
+  const body = userId 
+    ? { originalUrl, customShortCode, userId }
+    : { originalUrl, customShortCode };
+  const response = await fetch(`${API_BASE_URL}/api/urls/custom`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
   });
   return response.json();
 }
