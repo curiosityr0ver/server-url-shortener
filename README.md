@@ -228,6 +228,8 @@ For complete authentication documentation, see [AUTHENTICATION.md](AUTHENTICATIO
 | POST | `/api/auth/register` | Register new user |
 | POST | `/api/auth/login` | Login and receive JWT token |
 | GET | `/{shortCode}` | Redirect to original URL (tracks hits) |
+| GET | `/api/test/jwt` | Test JWT token validation (query param: `token`) |
+| GET | `/api/test/generate-and-validate` | Generate and validate a test JWT token |
 
 ### 🔒 Protected Endpoints (Requires JWT Token)
 
@@ -275,10 +277,8 @@ curl -X POST http://localhost:8081/api/auth/register \
 ```
 
 **Response:** `200 OK`
-```json
-{
-  "message": "User registered successfully"
-}
+```
+User registered successfully
 ```
 
 **2. Login to Get JWT Token**
@@ -384,16 +384,26 @@ curl http://localhost:8081/api/urls/stats/popular \
   {
     "id": 1,
     "shortCode": "viral",
+    "shortUrl": "http://localhost:8081/viral",
     "originalUrl": "https://popular.com",
-    "hits": 1000,
-    "createdByUsername": "testuser"
+    "createdByUserId": 1,
+    "createdByUsername": "testuser",
+    "createdAt": "2025-01-20T10:30:00Z",
+    "lastAccessedAt": "2025-01-21T09:15:00Z",
+    "expireAt": null,
+    "hits": 1000
   },
   {
     "id": 2,
     "shortCode": "trend",
+    "shortUrl": "http://localhost:8081/trend",
     "originalUrl": "https://trending.com",
-    "hits": 500,
-    "createdByUsername": "anotheruser"
+    "createdByUserId": 2,
+    "createdByUsername": "anotheruser",
+    "createdAt": "2025-01-19T14:20:00Z",
+    "lastAccessedAt": "2025-01-21T08:45:00Z",
+    "expireAt": null,
+    "hits": 500
   }
 ]
 ```
@@ -411,6 +421,12 @@ curl -X DELETE http://localhost:8081/api/urls/1 \
 curl -X DELETE http://localhost:8081/api/urls/expired \
   -H "Authorization: Bearer <YOUR_TOKEN>"
 ```
+
+**Response:** `200 OK`
+```json
+5
+```
+(The number represents the count of deleted URLs)
 
 ### User Management (with Authentication)
 
@@ -550,17 +566,22 @@ Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular -Headers $he
 
 ### Error Responses
 
-**Unauthorized (401 Unauthorized)** - Missing or invalid JWT token:
+**Unauthorized (401 Unauthorized)** - Missing or invalid JWT token (from JwtAuthenticationFilter):
 ```json
 {
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Full authentication is required to access this resource",
-  "path": "/api/urls"
+  "error": "JWT token has expired",
+  "status": "401"
 }
 ```
 
-**Forbidden (403 Forbidden)** - No token provided:
+**Unauthorized (401 Unauthorized)** - Invalid credentials (from AuthController):
+```json
+{
+  "error": "Incorrect username or password"
+}
+```
+
+**Forbidden (403 Forbidden)** - No token provided (Spring Security default):
 ```json
 {
   "status": 403,
@@ -593,12 +614,10 @@ Invoke-WebRequest -Uri http://localhost:8081/api/urls/stats/popular -Headers $he
 }
 ```
 
-**Bad Credentials (400 Bad Request):**
+**Bad Credentials (401 Unauthorized):**
 ```json
 {
-  "status": 400,
-  "message": "Bad credentials",
-  "timestamp": "2025-01-21T10:30:00Z"
+  "error": "Incorrect username or password"
 }
 ```
 
@@ -614,7 +633,7 @@ The application supports the following environment variables (useful for deploym
 | `SPRING_DATASOURCE_USERNAME` | Database username | `admin` |
 | `SPRING_DATASOURCE_PASSWORD` | Database password | `admin` |
 | `SERVER_PORT` | Application port | `8080` |
-| `JWT_SECRET` | JWT signing secret (recommended for production) | Auto-generated |
+| `JWT_SECRET` | JWT signing secret (recommended for production) | Default dev secret provided |
 
 > **Note:** The `shortUrl` field in API responses is automatically extracted from the incoming HTTP request (scheme, host, and port), so it works correctly in any environment without manual configuration.
 
