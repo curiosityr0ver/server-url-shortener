@@ -1,11 +1,11 @@
-services:
+databases:
   # PostgreSQL Database
-  - type: postgres
-    name: urlshortener-db
+  - name: urlshortener-db
     databaseName: urlshortener
     user: admin
     plan: free  # Change to 'starter' or 'standard' for production
 
+services:
   # Spring Boot Web Service
   - type: web
     name: urlshortener-app
